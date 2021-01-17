@@ -1,0 +1,326 @@
+---
+title: "Donald J. Trump su Twitter"
+author: "Edoardo Piovesana"
+output:
+  ioslides_presentation:
+    css: style.css
+    incremental: yes
+  beamer_presentation:
+    incremental: yes
+editor_options:
+  chunk_output_type: inline
+---
+
+## Donald John Trump
+* 14 giugno 1946, New York, Stati Uniti
+* Elizabeth Trump & Son
+* Swifton Village: azzeramento del tasso di sfitto dei 1.200 appartamenti
+* A 23 anni, commedia di Broadway, Paris Is Out!
+* 1971: diventa presidente della compagnia: The Trump Organization
+* 1978: Manhattan, rivitalizza Grand Hyatt Hotel
+* 1983: Manhattan, completò la Trump Tower
+* 1984: Atlantic City, apre il Trump Plaza
+* Tra il 1991 e il 2009: hotel e casinò di sua proprietà sono finiti per sei volte in bancarotta
+* 1996: Manhattan, acquista un grattacielo di settanta piani al numero 40 di Wall Street
+* 2001: acquisisce la Trump World Tower
+* 2002: acquisisce l'Hotel Delmonico di Manhattan
+* 2016: diventa Presidente degli USA
+* Nel 2016 Forbes ha stimato il patrimonio netto di Trump in 3,7 miliardi di dollari
+
+
+## Elementi importanti del Dataset
+
+* Tweet
+* Retweets
+* Likes
+* Date
+* Time
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(tidytext)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(kableExtra)
+library(knitr)
+library(stringr)
+library(wordcloud)
+library(scales)
+#caricamento dati
+csv <- read.csv("trumpone2.csv", encoding = "UTF-8")
+#csv <- data.frame(lapply(csv, as.character), stringsAsFactors=FALSE)
+#csvT$id<-as.character(csv$id)
+View(csv)
+
+
+```
+
+## Struttura del progetto
+
+* Parte 1: Analisi dell'account Twitter
+* Parte 2: Analisi delle parole utilizzate nei Tweet
+
+# Analisi dell'account Twitter
+
+## I Tweet con più successo:
+
+### I 3 Tweet con più mi piace
+
+```{r echo=FALSE, comment=""}
+csv2 <-
+  csv %>%
+  within({
+    tweet = paste(substr(tweet, 1, 50), "...", sep = "")
+    })
+
+csv2 %>%
+  select(tweet,likes_count,date) %>%
+  rename(likes = likes_count) %>%
+  arrange(desc(likes)) %>%
+  head(3) %>%
+  select(tweet,likes,date) %>%
+  separate(date, into = c("month","day","year") , sep = "/")
+```
+
+### I 3 Tweet con più retweet
+
+```{r echo=FALSE, comment=""}
+options(width = 120)
+csv %>%
+  select(tweet,retweets_count,date) %>%
+  rename(retweets = retweets_count) %>%
+  arrange(desc(retweets)) %>%
+  head(3) %>%
+  select(tweet,retweets,date) %>%
+  separate(date, into = c("month","day","year") , sep = "/")
+```
+
+## Numero di tweet ogni anno
+
+```{r echo=FALSE, comment=""}
+csv %>%
+  select(tweet,date) %>%
+  separate(date, into = c("month","day","year"), sep = "/") %>%
+  group_by(year) %>% 
+  summarise(tot = n()) %>%
+  ungroup() %>%
+  ggplot(aes(year,tot)) +
+  geom_histogram(binwidth = 0.1, stat='identity')
+```
+
+
+## "Mi piace" e "Retweets" negli anni
+
+```{r echo=FALSE, comment=""}
+csv %>%
+  select(likes_count,retweets_count,date)%>%
+  separate(date, into = c("month","day","year"), sep = "/") %>%
+  group_by(year) %>%
+  summarise(likes = sum(likes_count),retweets = sum(retweets_count)) %>%
+  arrange(desc(year)) %>%
+  ungroup() 
+```
+
+
+## I 3 mesi con più Tweet 
+
+```{r echo=FALSE, comment=""}
+csv %>%
+  select(tweet,date) %>%
+  separate(date, into = c("month","day","year") , sep = "/") %>%
+  group_by(year,month) %>%
+  summarise(tot = n()) %>%
+  arrange(desc(tot)) %>%
+  head(3) %>%
+  ungroup()
+```
+
+## I mesi con più successo
+
+### I 3 mesi con più mi piace
+
+```{r echo=FALSE, comment=""}
+csv %>%
+  select(likes_count,date)%>%
+  separate(date, into = c("month","day","year") , sep = "/") %>%
+  group_by(year,month) %>%
+  summarise(likes = sum(likes_count)) %>%
+  arrange(desc(likes)) %>%
+  ungroup() %>%
+  head(3)
+```
+
+### I 3 mesi con più retweets
+
+```{r echo=FALSE, comment=""}
+csv %>%
+  select(retweets_count,date)%>%
+  separate(date, into = c("month","day","year") , sep = "/") %>%
+  group_by(year,month) %>%
+  summarise(retweets = sum(retweets_count)) %>%
+  arrange(desc(retweets)) %>%
+  ungroup() %>%
+  head(3)
+```
+
+## Una media di ... Tweet al giorno nel
+
+### 2019
+
+```{r echo=FALSE, comment=""}
+csv %>%
+  separate(date, into = c("month","day","year"), sep = "/") %>%
+  filter(year == "2019") %>%
+  group_by(year,month,day) %>%
+  summarise(totPerDay=n()) %>%
+  summarise(avgPerMonth = signif(mean(totPerDay), digits = 3)) %>%
+  summarise(avgPerDay = signif(mean(avgPerMonth), digits = 3)) %>%
+  ungroup()
+```
+
+### 2020
+
+```{r echo=FALSE, comment=""}
+csv %>%
+  separate(date, into = c("month","day","year"), sep = "/") %>%
+  filter(year == "2020") %>%
+  group_by(year,month,day) %>%
+  summarise(totPerDay=n()) %>%
+  summarise(avgPerMonth = signif(mean(totPerDay), digits = 3)) %>%
+  summarise(avgPerDay = signif(mean(avgPerMonth), digits = 3)) %>%
+  ungroup()
+```
+
+## Orario pubblicazione Tweet
+
+```{r echo=FALSE, comment=""}
+csv %>%
+  separate(time, into = "hour", sep = ":") %>%
+  group_by(hour) %>%
+  summarise(ntweet=n()) %>%
+  ggplot(aes(hour,ntweet)) + 
+  geom_col()
+
+```
+
+# Analisi delle parole utilizzate nei Tweet
+
+```{r echo=FALSE, comment=""}
+#tokenizzo tutti i messaggi
+#rimozione stopWords
+
+word = c("pic.twitter.com","realdonaldtrump","â","bit.ly","amp","twitter.com","https","http","status","m.youtube.com","it's","wwww.instagram.com","en.m.wikipedia.org","youtu.be", "www.facebook.com", "pqpfvm", "tinyurl.com", "www.trump.com", "deck.ly", "cont", "tl.gd", "i", "pic.twitter.com", "wh.gov", "Ø", "ù", "ú", "û")
+myStopwords <- data.frame(word)
+
+token <- unnest_tokens(tbl = csv, output = word, input = tweet)
+
+rmvtoken <- token %>%
+  anti_join(stop_words) %>%
+  anti_join(myStopwords)
+
+```
+
+## Le parole maggiormente usate nei Tweet
+
+```{r echo=FALSE, comment=""}
+rmvtoken %>%
+  count(word, sort = TRUE) %>%
+  mutate(word = reorder(word, n)) %>%
+  head(10) %>%
+  ggplot(aes(word, n)) +
+  geom_col(show.legend = TRUE)+
+  labs(X=NULL,y=NULL)+
+  coord_flip() 
+```
+
+###
+```{r echo=FALSE, comment=""}
+rmvtoken %>%
+  count(word, sort = TRUE) %>%
+  mutate(word = reorder(word, n)) %>%
+  with(wordcloud(word, n, max.words = 200))
+```
+
+
+## Bigrammi più utilizzati
+
+```{r echo=FALSE, comment=""}
+bigrammi <- csv %>%
+  unnest_tokens(bigrammi, tweet, token = "ngrams", n = 2) 
+
+bigrammi <- bigrammi %>%
+  filter(!is.na(bigrammi))
+
+bigrammi <- bigrammi %>%
+  separate(bigrammi, c("word1", "word2"), sep = " ") %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  filter(!word1 %in% myStopwords$word) %>%
+  filter(!word2 %in% myStopwords$word)
+  
+bigrammi %>%  
+  unite(bigrammi, word1, word2, sep = " ") %>%
+  count(bigrammi, sort = TRUE) %>%
+  head(10) %>%
+  ungroup()
+```
+
+## Parole più utilizzate divise per sentimento
+
+```{r echo=FALSE, comment=""}
+rmvtoken %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  mutate(word = reorder(word,n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") + 
+  labs(y = NULL, x = NULL) +
+  coord_flip()
+```
+
+## Andamento dei sentimenti durante gli anni
+
+```{r echo=FALSE, comment=""}
+rmvtoken %>%
+  separate(date, into = c("month","day","year") , sep = "/") %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(year, month, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = (positive - negative)) %>%
+  ggplot(aes(month,sentiment, fill = year)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~year, ncol = 3, scales = "free_y") +
+  labs(y = NULL, x = NULL) 
+```
+
+## Calcolo TF-IDF
+
+```{r echo=FALSE, comment=""}
+tfidf <- rmvtoken 
+
+year_words <- tfidf %>%
+  separate(date, into = c("month","day","year") , sep = "/") %>%
+  count(year, word, sort = TRUE) %>%
+  ungroup() 
+
+year_words %>%
+  bind_tf_idf(word, year, n) %>%
+  arrange(desc(tf_idf)) %>%
+  group_by(year) %>% 
+  slice_max(order_by = tf_idf, n = 4) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, tf_idf)) %>%
+  ggplot(aes(word, tf_idf, fill = year)) +
+  geom_col(show.legend = FALSE) +
+  labs(x = NULL, y = "tf-idf") +
+  facet_wrap(~year, ncol = 3, scales = "free_y") +
+  coord_flip()
+```
+
+# Fine
